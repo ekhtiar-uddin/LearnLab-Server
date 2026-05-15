@@ -1,3 +1,5 @@
+// controllers/userProgress.controller. ts
+
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import catchAsync from "../../utils/catchAsync";
@@ -15,6 +17,22 @@ const createUserProgress = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getUserProgressByCourse = catchAsync(async (req, res) => {
+  const { userId, courseId } = req.query;
+
+  const result = await UserProgressService.getUserProgressByCourse(
+    userId as string,
+    courseId as string
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "User Progress retrieved successfully",
+    data: result,
+  });
+});
+
 const getAllUserProgress = catchAsync(async (req, res) => {
   const result = await UserProgressService.getAllUserProgress(req.query);
 
@@ -28,15 +46,11 @@ const getAllUserProgress = catchAsync(async (req, res) => {
 });
 
 const updateUserProgress = catchAsync(async (req, res) => {
-  const {
-    body: payload,
-    params: { progressId },
-  } = req;
-
-  console.log("payload", payload);
+  const { userId, courseId, ...payload } = req.body;
 
   const result = await UserProgressService.updateUserProgress(
-    progressId,
+    userId,
+    courseId,
     payload
   );
 
@@ -50,6 +64,7 @@ const updateUserProgress = catchAsync(async (req, res) => {
 
 export const UserProgressController = {
   createUserProgress,
+  getUserProgressByCourse,
   getAllUserProgress,
   updateUserProgress,
 };

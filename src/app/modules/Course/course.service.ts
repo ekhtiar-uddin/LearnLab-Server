@@ -1,7 +1,9 @@
 import { StatusCodes } from "http-status-codes";
+import { Types } from "mongoose";
 import QueryBuilder from "../../builder/QueryBuilder";
 import AppError from "../../errors/appError";
 import { IImageFile } from "../../interface/IImageFile";
+import CourseModule from "../course-modules/course-module.model";
 import { Review } from "../review/review.model";
 import { IProduct } from "./course.interface";
 import { Product } from "./course.model";
@@ -120,11 +122,52 @@ const deleteProduct = async (
   };
 };
 
+export const getCourseWithModulesAndLectures = async (courseId: string) => {
+  const modules = await CourseModule.aggregate([
+    {
+      $match: {
+        course: new Types.ObjectId(courseId),
+        isDeleted: { $ne: true },
+      },
+    },
+    {
+      $lookup: {
+        from: "lectures", // Your lectures collection name
+        localField: "_id",
+        foreignField: "module",
+        as: "lectures",
+      },
+    },
+    {
+      $addFields: {
+        lectures: {
+          $filter: {
+            input: "$lectures",
+            as: "lecture",
+            cond: { $ne: ["$$lecture.isDeleted", true] },
+          },
+        },
+      },
+    },
+    { $sort: { moduleNumber: 1 } },
+    {
+      $project: {
+        _id: 1,
+        moduleNumber: 1,
+        moduleTitle: 1,
+        lectures: 1,
+      },
+    },
+  ]);
+
+  return modules;
+};
+
 export const ProductService = {
   createProduct,
   getAllProduct,
-
   getSingleProduct,
   updateProduct,
   deleteProduct,
+  getCourseWithModulesAndLectures,
 };

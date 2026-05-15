@@ -43,6 +43,19 @@ const getSingleProduct = catchAsync(async (req, res) => {
     data: result,
   });
 });
+const getCourseWithModulesAndLectures = catchAsync(async (req, res) => {
+  const { productId } = req.params;
+  const result = await ProductService.getCourseWithModulesAndLectures(
+    productId
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product retrieved successfully",
+    data: result,
+  });
+});
 
 const updateProduct = catchAsync(async (req, res) => {
   const {
@@ -84,8 +97,8 @@ const deleteProduct = catchAsync(async (req, res) => {
 export const ProductController = {
   createProduct,
   getAllProduct,
-
   getSingleProduct,
   updateProduct,
   deleteProduct,
+  getCourseWithModulesAndLectures,
 };

@@ -1,51 +1,61 @@
-import { StatusCodes } from "http-status-codes";
-import QueryBuilder from "../../builder/QueryBuilder";
-import AppError from "../../errors/appError";
+// services/userProgress.service.ts
 
+import { Types } from "mongoose";
+import QueryBuilder from "../../builder/QueryBuilder";
 import { IUserProgress } from "./userProgress.interface";
-import UserProgress, { default as LectureProgress } from "./userProgress.model";
+import UserProgress from "./userProgress.model";
 
 const createUserProgress = async (userProgressData: Partial<IUserProgress>) => {
-  const isUserExist = await UserProgress.findOne({
-    userId: userProgressData?.userId,
+  // Check if progress already exists for this user and course
+  const existingProgress = await UserProgress.findOne({
+    userId: userProgressData.userId,
+    courseId: userProgressData.courseId,
   });
 
-  if (isUserExist) {
-    throw new AppError(
-      StatusCodes.BAD_REQUEST,
-      "This user already has a progress"
-    );
+  if (existingProgress) {
+    // Return existing progress instead of throwing error
+    return existingProgress;
   }
 
   const userProgress = await UserProgress.create(userProgressData);
   return userProgress;
 };
 
-const getAllUserProgress = async (query: Record<string, unknown>) => {
-  const { userId, ...pQuery } = query;
+const getUserProgressByCourse = async (userId: string, courseId: string) => {
+  const progress = await UserProgress.findOne({
+    userId: new Types.ObjectId(userId),
+    courseId: new Types.ObjectId(courseId),
+  })
+    .populate("currentLecture")
+    .populate("completedLectures")
+    .lean();
 
-  // Build the filter object
+  return progress;
+};
+
+const getAllUserProgress = async (query: Record<string, unknown>) => {
+  const { userId, courseId, ...pQuery } = query;
+
   const filter: Record<string, any> = {};
 
-  // filter by userId
   if (userId) {
-    const courseArray =
-      typeof userId === "string"
-        ? userId.split(",")
-        : Array.isArray(userId)
-        ? userId
-        : [userId];
-    filter.userId = { $in: courseArray };
+    filter.userId = userId;
+  }
+
+  if (courseId) {
+    filter.courseId = courseId;
   }
 
   const productQuery = new QueryBuilder(UserProgress.find(filter), pQuery)
-    // .search(["name", "description"])
     .filter()
     .sort()
     .paginate()
     .fields();
 
-  const data = await productQuery.modelQuery.lean();
+  const data = await productQuery.modelQuery
+    .populate("currentLecture")
+    .populate("completedLectures")
+    .lean();
 
   const meta = await productQuery.countTotal();
 
@@ -56,27 +66,80 @@ const getAllUserProgress = async (query: Record<string, unknown>) => {
 };
 
 const updateUserProgress = async (
-  progressId: string,
-  payload: { currentLecture: string; nextLecture: string }
+  userId: string,
+  courseId: string,
+  payload: {
+    currentLecture: string;
+    nextLecture?: string;
+    totalLectures: number;
+  }
 ) => {
-  return await LectureProgress.findByIdAndUpdate(
-    progressId,
-    {
+  const currentLectureId = new Types.ObjectId(payload.currentLecture);
+  const nextLectureId = payload.nextLecture
+    ? new Types.ObjectId(payload.nextLecture)
+    : null;
+
+  // Find or create user progress
+  let progress = await UserProgress.findOne({
+    userId: new Types.ObjectId(userId),
+    courseId: new Types.ObjectId(courseId),
+  });
+
+  if (!progress) {
+    // Create new progress
+    progress = await UserProgress.create({
+      userId: new Types.ObjectId(userId),
+      courseId: new Types.ObjectId(courseId),
+      currentLecture: nextLectureId || currentLectureId,
+      completedLectures: [currentLectureId],
+      unlockedLectures: nextLectureId
+        ? [currentLectureId, nextLectureId]
+        : [currentLectureId],
+      progressPercentage: Math.round((1 / payload.totalLectures) * 100),
+      lastAccessedAt: new Date(),
+    });
+  } else {
+    // Update existing progress
+    const updateData: any = {
+      currentLecture: nextLectureId || currentLectureId,
+      lastAccessedAt: new Date(),
       $addToSet: {
-        completedLectures: payload.currentLecture,
-        unlockedLectures: {
-          $each: [payload.currentLecture, payload.nextLecture],
-        },
+        completedLectures: currentLectureId,
+        unlockedLectures: currentLectureId,
       },
-    },
-    {
-      new: true,
+    };
+
+    if (nextLectureId) {
+      updateData.$addToSet.unlockedLectures = {
+        $each: [currentLectureId, nextLectureId],
+      };
     }
-  );
+
+    progress = await UserProgress.findOneAndUpdate(
+      {
+        userId: new Types.ObjectId(userId),
+        courseId: new Types.ObjectId(courseId),
+      },
+      updateData,
+      { new: true }
+    );
+
+    // Calculate progress percentage
+    if (progress) {
+      const completedCount = progress.completedLectures.length;
+      progress.progressPercentage = Math.round(
+        (completedCount / payload.totalLectures) * 100
+      );
+      await progress.save();
+    }
+  }
+
+  return progress;
 };
 
 export const UserProgressService = {
   createUserProgress,
+  getUserProgressByCourse,
   getAllUserProgress,
   updateUserProgress,
 };

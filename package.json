@@ -12,7 +12,7 @@
     "build": "tsc",
     "create-module": "npx ts-node src/scripts/createModule.ts",
     "deploy": "yarn build && vercel && vercel --prod",
-    "commit": "git add . && git commit -m \"edited and organize code\" && git push"
+    "commit": "git add . && git commit -m \"updated env credentials\" && git push"
   },
   "dependencies": {
     "@types/nodemailer": "^6.4.17",

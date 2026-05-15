@@ -27,8 +27,10 @@ const getAllCourseModules = async (
 ) => {
   const { ...pQuery } = query;
 
-  // Build the filter object
-  const filter: Record<string, any> = {};
+  // Build the filter object with courseId
+  const filter: Record<string, any> = {
+    course: courseId,
+  };
 
   const productQuery = new QueryBuilder(CourseModule.find(filter), pQuery)
     // .search(["name", "description"])

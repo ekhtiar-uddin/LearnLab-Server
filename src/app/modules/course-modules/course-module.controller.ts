@@ -18,6 +18,8 @@ const createCourseModule = catchAsync(async (req: Request, res: Response) => {
 const getAllCourseModules = catchAsync(async (req, res) => {
   const courseId = req.params?.courseId;
 
+  console.log("courseId:", courseId);
+
   const result = await CourseModuleService.getAllCourseModules(
     courseId,
     req.query

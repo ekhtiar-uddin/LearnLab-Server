@@ -13,6 +13,11 @@ router.get("/", ProductController.getAllProduct);
 
 router.get("/:productId", ProductController.getSingleProduct);
 
+router.get(
+  "/:productId/modules",
+  ProductController.getCourseWithModulesAndLectures
+);
+
 // auth(UserRole.Landlord),
 router.post(
   "/",

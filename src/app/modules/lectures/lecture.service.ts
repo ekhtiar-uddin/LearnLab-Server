@@ -41,13 +41,18 @@ const getAllLectures = async (query: Record<string, unknown>) => {
 
   // filter by moduleId
   if (moduleId) {
-    const moduleArray =
-      typeof moduleId === "string"
-        ? moduleId.split(",")
-        : Array.isArray(moduleId)
-        ? moduleId
-        : [moduleId];
-    filter.module = { $in: moduleArray };
+    // Check if it's a single ID or multiple IDs
+    if (typeof moduleId === "string" && moduleId.includes(",")) {
+      // Multiple IDs
+      const moduleArray = moduleId.split(",");
+      filter.module = { $in: moduleArray };
+    } else if (Array.isArray(moduleId)) {
+      // Array of IDs
+      filter.module = { $in: moduleId };
+    } else {
+      // Single ID - direct match
+      filter.module = moduleId;
+    }
   }
 
   if (moduleTitle) {
@@ -85,7 +90,6 @@ const getAllLectures = async (query: Record<string, unknown>) => {
   }
 
   const productQuery = new QueryBuilder(Lecture.find(filter), pQuery)
-    // .search(["name", "description"])
     .filter()
     .sort()
     .paginate()
